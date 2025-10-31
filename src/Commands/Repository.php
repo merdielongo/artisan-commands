@@ -1,19 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Davinet\ArtisanCommand\Commands;
 
-use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use RuntimeException;
 
-class Repository extends Command
+/**
+ * Command to generate repository classes.
+ *
+ * @author Merdi Elongo <merdielongo9@gmail.com>
+ */
+class Repository extends BaseCommand
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'make:repository {name} {--model= : The model on which the repository class will be based on}';
+    protected $signature = 'make:repository {name} 
+                            {--model= : The model on which the repository class will be based}
+                            {--force : Overwrite existing files without confirmation}
+                            {--dry-run : Preview the file that would be created without actually creating it}';
 
     /**
      * The console command description.
@@ -23,56 +33,100 @@ class Repository extends Command
     protected $description = 'Create a new repository class';
 
     /**
-     * Create a new command instance.
+     * Execute the console command.
      *
-     * @return void
+     * @return int
      */
-    public function __construct()
+    public function handle(): int
     {
-        parent::__construct();
+        $name = $this->argument('name');
+        $model = $this->option('model');
+
+        if (empty($name)) {
+            $this->error('The name of the repository is required.');
+            return self::FAILURE;
+        }
+
+        try {
+            $content = $this->buildContent($name, $model);
+
+            if ($content === null) {
+                return self::FAILURE;
+            }
+
+            $filename = app_path('Repositories/' . ucfirst($name) . '.php');
+            $question = "There is a repository with this name ({$name}). Do you want to replace it? [y/n]";
+
+            if (!$this->shouldReplaceFile($filename, $question)) {
+                return self::SUCCESS;
+            }
+
+            $this->ensureDirectoryExists();
+            $this->writeFile($filename, $content);
+
+            $this->displaySuccess('Repository created successfully!', $filename);
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error("Error: {$e->getMessage()}");
+            return self::FAILURE;
+        }
     }
 
     /**
-     * Retrieve the stub content from the repository's stub file.
+     * Build the content for the repository file.
      *
-     * @return mixed
+     * @param string $name
+     * @param string|null $model
+     * @return string|null
      */
-    protected function getStub()
+    protected function buildContent(string $name, ?string $model): ?string
     {
-        return file_get_contents(__DIR__.'/stubs/repository.stub');
-    }
+        if ($model === null) {
+            return $this->replaceClassName($name, $this->getStubContent('empty.repository'));
+        }
 
-    /**
-     * Retrieve the stub content from the repository's empty stub file.
-     *
-     * @return bool|string
-     */
-    protected function getEmptyStub()
-    {
-        return file_get_contents(__DIR__.'/stubs/empty.repository.stub');
+        $namespace = 'App';
+        $modelName = $model;
+
+        if (Str::contains($model, ['\\', '/'])) {
+            $this->setModelAndNamespace($modelName, $namespace);
+        }
+
+        if (!$this->modelFileExists($namespace . '\\' . $modelName)) {
+            $this->error("The specified model \"{$this->option('model')}\" does not exist.");
+            return null;
+        }
+
+        $stub = $this->getStubContent('repository');
+        $stub = $this->replaceModelNamespace($namespace, $stub);
+        $stub = $this->replaceModelName($modelName, $stub);
+        $stub = $this->replacePropertyName($modelName, $stub);
+        $stub = $this->replaceClassName($name, $stub);
+
+        return $stub;
     }
 
     /**
      * Replace every DummyClass with the right class name.
      *
-     * @param $name
-     * @param $stub
-     * @return mixed
+     * @param string $name
+     * @param string $stub
+     * @return string
      */
-    protected function replaceClassName($name, $stub)
+    protected function replaceClassName(string $name, string $stub): string
     {
-        $class = ucfirst($name);
-        return str_replace('DummyClass', $class, $stub);
+        return str_replace('DummyClass', ucfirst($name), $stub);
     }
 
     /**
      * Replace every DummyProperty with the right property name.
      *
-     * @param $name
-     * @param $stub
-     * @return mixed
+     * @param string $name
+     * @param string $stub
+     * @return string
      */
-    protected function replacePropertyName($name, $stub)
+    protected function replacePropertyName(string $name, string $stub): string
     {
         $property = lcfirst(Str::camel($name));
         return str_replace('DummyProperty', $property, $stub);
@@ -81,119 +135,92 @@ class Repository extends Command
     /**
      * Replace every DummyModel with the right model name.
      *
-     * @param $name
-     * @param $stub
-     * @return mixed
+     * @param string $name
+     * @param string $stub
+     * @return string
      */
-    protected function replaceModelName($name, $stub)
+    protected function replaceModelName(string $name, string $stub): string
     {
-        $model = ucfirst($name);
-        return str_replace('DummyModel', $model, $stub);
+        return str_replace('DummyModel', ucfirst($name), $stub);
     }
 
     /**
-     * Replace the namespace of the namespace of the model.
+     * Replace the namespace of the model.
      *
-     * @param $namespace
-     * @param $stub
-     * @return mixed
+     * @param string $namespace
+     * @param string $stub
+     * @return string
      */
-    protected function replaceModelNamespace($namespace, $stub)
+    protected function replaceModelNamespace(string $namespace, string $stub): string
     {
         return str_replace('DummyModelNamespace', ucfirst($namespace), $stub);
     }
 
     /**
-     * Rewrite actually the content in the file.
+     * Set the right name and namespace from model string.
      *
-     * @param $filename
-     * @param $content
-     */
-    protected function putInFile($filename, $content)
-    {
-        if (!is_dir(app_path('/Repositories')))
-            mkdir(app_path('/Repositories'));
-        file_put_contents($filename, $content);
-    }
-
-    /**
-     * Set the right name and namespace.
-     *
-     * @param $model
-     * @param $namespace
+     * @param string &$model
+     * @param string &$namespace
      * @return void
      */
-    protected function setModelAndNamespace(&$model, &$namespace)
+    protected function setModelAndNamespace(string &$model, string &$namespace): void
     {
         $exploded = str_contains($model, '/') ? explode('/', $model) : explode('\\', $model);
         $model = Arr::last($exploded);
         $namespace = '';
 
-        for ($i = 0; $i < count($exploded) - 1; $i++)
-            $namespace .= $exploded[$i].'\\';
+        for ($i = 0; $i < count($exploded) - 1; $i++) {
+            $namespace .= $exploded[$i] . '\\';
+        }
 
-        $namespace = Str::replaceLast('\\','', $namespace);
+        $namespace = Str::replaceLast('\\', '', $namespace);
     }
 
     /**
      * Check if a model file exists.
      *
-     * @param $model
+     * @param string $model
      * @return bool
      */
-    protected function modelFileExists($model)
+    protected function modelFileExists(string $model): bool
     {
-        return file_exists( base_path(lcfirst($model).'.php')) || file_exists( base_path(lcfirst(str_replace('\\', '/', $model)).'.php'));
+        $paths = [
+            base_path(lcfirst($model) . '.php'),
+            base_path(lcfirst(str_replace('\\', '/', $model)) . '.php'),
+            app_path(str_replace('\\', '/', $model) . '.php'),
+        ];
+
+        foreach ($paths as $path) {
+            if (file_exists($path)) {
+                return true;
+            }
+        }
+
+        // Try to find using autoloader
+        try {
+            if (class_exists($model)) {
+                $reflection = new \ReflectionClass($model);
+                return $reflection->getFileName() !== false;
+            }
+        } catch (\ReflectionException $e) {
+            // Class doesn't exist
+        }
+
+        return false;
     }
 
     /**
-     * Execute the console command.
+     * Ensure the Repositories directory exists.
      *
      * @return void
      */
-    public function handle()
+    protected function ensureDirectoryExists(): void
     {
-        $name = $this->argument('name');
-        $model = $this->option('model');
-        $namespace = 'App';
-        if (empty($name)) {
-            $this->error('Please the name of the repository is expected.');
-        } else {
-            $content = null;
+        $directory = app_path('Repositories');
 
-            if (is_null($model)) {
-                $content = $this->replaceClassName($name, $this->getEmptyStub());
-            } else {
-                if (Str::contains($model, ['\\', '/'])) {
-                    $this->setModelAndNamespace($model, $namespace);
-                }
-
-                if ($this->modelFileExists($namespace.'\\'.$model)) {
-                    $content = $this->replaceModelNamespace($namespace, $this->getStub());
-                    $content = $this->replaceModelName($model, $content);
-                    $content = $this->replacePropertyName($model, $content);
-                    $content = $this->replaceClassName($name, $content);
-                } else {
-                    $this->output->error('The specified model "'.$this->option('model').'" does not exist.');
-                }
-            }
-
-            if (!is_null($content)) {
-                $filename = app_path('Repositories/'.ucfirst($name).'.php');
-
-                if (file_exists($filename)) {
-                    do {
-                        $input = $this->ask("There is a repository with this name ($name) do you want to replace it ? [o/n] ");
-                    } while (strtolower($input) != 'o' && strtolower($input) != 'n');
-
-                    if('o' == strtolower($input)){
-                        $this->putInFile($filename, $content);
-                        $this->info('Reporitory created successfully.');
-                    }
-                } else {
-                    $this->putInFile($filename, $content);
-                    $this->info('Reporitory created successfully.');
-                }
+        if (!file_exists($directory)) {
+            if (!mkdir($directory, 0755, true) && !is_dir($directory)) {
+                throw new RuntimeException("Unable to create directory: {$directory}");
             }
         }
     }

@@ -1,63 +1,71 @@
 <?php
-/**
- * Author: Danny Villa Kalonji
- * Date: 07/11/2019
- * Time: 03:34
- */
+
+declare(strict_types=1);
 
 namespace Davinet\ArtisanCommand\Commands;
 
-
-use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
-class File extends Command
+/**
+ * Command to generate generic files.
+ *
+ * @author Merdi Elongo <merdielongo9@gmail.com>
+ */
+class File extends BaseCommand
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'make:file {filename} {--ext= : The file extension. By default is php}';
+    protected $signature = 'make:file {filename} 
+                            {--ext= : The file extension (default: php)}
+                            {--force : Overwrite existing files without confirmation}
+                            {--dry-run : Preview the file that would be created without actually creating it}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Create a new file';
-
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
+    protected $description = 'Create a new generic file';
 
     /**
      * Execute the console command.
      *
-     * @return void
+     * @return int
      */
-    public function handle()
+    public function handle(): int
     {
-        if ($this->isCorrectFilename($this->argument('filename'))) {
+        $filename = $this->argument('filename');
+
+        if (!$this->isValidFilename($filename)) {
+            $this->error('The filename is not correct. Only alphanumeric characters, dots, underscores, and hyphens are allowed.');
+            return self::FAILURE;
+        }
+
+        try {
             $extension = $this->getExtension();
-            $path = base_path(str_replace('.', '/', $this->argument('filename')).'.'.$extension);
+            $path = base_path(str_replace('.', DIRECTORY_SEPARATOR, $filename) . '.' . $extension);
 
-            if ($this->replaceExistingFile($path, 'There is already a file with this name do you want to replace it ? [y/n]')) {
-                $filename = explode('.', $this->argument('filename'));
+            $question = "There is already a file with this name. Do you want to replace it? [y/n]";
 
-                $this->createFoldersIfNecessary($filename);
-
-                file_put_contents($path, '');
-                $this->info('File created successfully');
+            if (!$this->shouldReplaceFile($path, $question)) {
+                return self::SUCCESS;
             }
-        } else
-            $this->error('The filename is not correct.');
+
+            $pathParts = explode('.', $filename);
+            $this->createFoldersIfNecessary($pathParts, base_path());
+
+            $this->writeFile($path, '');
+
+            $this->displaySuccess('File created successfully!', $path);
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error("Error: {$e->getMessage()}");
+            return self::FAILURE;
+        }
     }
 
     /**
@@ -66,62 +74,19 @@ class File extends Command
      *
      * @return string
      */
-    protected function getExtension()
+    protected function getExtension(): string
     {
-        if ($this->hasOption('ext') && $this->option('ext') !== null)
-            if (Str::startsWith($this->option('ext'), '.'))
-                return Str::replaceFirst('.', '', $this->option('ext'));
-            else
-                return $this->option('ext');
-        return 'php';
-    }
+        $ext = $this->option('ext');
 
-    /**
-     * Create a set of folders if necessary.
-     *
-     * @param $filename
-     * @return void
-     */
-    protected function createFoldersIfNecessary($filename)
-    {
-        $folder = base_path('');
-        for ($i = 0; $i < count($filename) - 1; $i++) {
-            if (!is_dir($folder . '/' . $filename[$i])) {
-                mkdir($folder . '/' . $filename[$i]);
-            }
-            $folder .= '/' . $filename[$i];
+        if ($ext === null) {
+            return 'php';
         }
-    }
 
-    /**
-     * Check if the filename is correct.
-     *
-     * @param $name
-     * @return bool
-     */
-    protected function isCorrectFilename($name)
-    {
-        return (bool) preg_match('#^[a-zA-Z][a-zA-Z0-9._\-]+$#', $name);
-    }
-
-    /**
-     * Check if the filename exists and if it could be replaced.
-     *
-     * @param $filename
-     * @param $question
-     * @return bool
-     */
-    protected function replaceExistingFile($filename, $question)
-    {
-        $replaceExistingFile = true;
-        if (file_exists($filename)) {
-            do {
-                $input = $this->ask($question);
-            } while (strtolower($input) != 'y' && strtolower($input) != 'n');
-
-            if (strtolower($input) == 'n')
-                $replaceExistingFile = false;
+        // Remove leading dot if present
+        if (Str::startsWith($ext, '.')) {
+            return Str::replaceFirst('.', '', $ext);
         }
-        return $replaceExistingFile;
+
+        return $ext;
     }
 }

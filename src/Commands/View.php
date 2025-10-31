@@ -1,99 +1,104 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Davinet\ArtisanCommand\Commands;
 
-use Illuminate\Console\Command;
-
-class View extends Command
+/**
+ * Command to generate Blade view files.
+ *
+ * @author Merdi Elongo <merdielongo9@gmail.com>
+ */
+class View extends BaseCommand
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'make:view {name} {--layout= : The layout that the view will extend}';
+    protected $signature = 'make:view {name} 
+                            {--layout= : The layout that the view will extend}
+                            {--force : Overwrite existing files without confirmation}
+                            {--dry-run : Preview the file that would be created without actually creating it}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Create a new view';
+    protected $description = 'Create a new Blade view file';
 
     /**
-     * Create a new command instance.
+     * Execute the console command.
      *
-     * @return void
+     * @return int
      */
-    public function __construct()
+    public function handle(): int
     {
-        parent::__construct();
+        $name = $this->argument('name');
+
+        if (!preg_match('#^[a-zA-Z._\-0-9]+$#', $name)) {
+            $this->error('Invalid view name. Only alphanumeric characters, dots, underscores, and dashes are supported.');
+            return self::FAILURE;
+        }
+
+        try {
+            $pathParts = explode('.', $name);
+            $folder = resource_path('views');
+
+            $this->createFoldersIfNecessary($pathParts, $folder);
+
+            $fileIndex = count($pathParts) - 1;
+            $filename = $folder . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, array_slice($pathParts, 0, $fileIndex)) 
+                      . DIRECTORY_SEPARATOR . $pathParts[$fileIndex] . '.blade.php';
+
+            // Normalize path separators
+            $filename = str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $filename);
+
+            $content = $this->buildContent();
+            $question = "There is a view with this name. Do you want to replace it? [y/n]";
+
+            if (!$this->shouldReplaceFile($filename, $question)) {
+                return self::SUCCESS;
+            }
+
+            $this->writeFile($filename, $content);
+
+            $this->displaySuccess('View created successfully!', $filename);
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error("Error: {$e->getMessage()}");
+            return self::FAILURE;
+        }
     }
 
     /**
-     * Retrieve the stub content from the view's stub file.
+     * Build the content for the view file.
      *
-     * @return mixed
+     * @return string
      */
-    protected function getStub()
+    protected function buildContent(): string
     {
-        return file_get_contents(__DIR__.'/stubs/view.stub');
+        $layout = $this->option('layout');
+
+        if (empty($layout)) {
+            return '';
+        }
+
+        $stub = $this->getStubContent('view');
+        return $this->replaceLayout($layout, $stub);
     }
 
     /**
      * Fill the right layout name in the stub.
      *
-     * @param $layout
-     * @param $stub
-     * @return mixed
+     * @param string $layout
+     * @param string $stub
+     * @return string
      */
-    protected function replaceLayout($layout, $stub)
+    protected function replaceLayout(string $layout, string $stub): string
     {
-        return str_replace(
-            'Layout',
-            $layout,
-            $stub
-        );
-    }
-
-    /**
-     * Execute the console command.
-     *
-     * @return mixed
-     */
-    public function handle()
-    {
-        $path = explode('.', $this->argument('name'));
-        $content = '';
-        if (preg_match('#^[a-zA-Z._\-0-9]+$#', $this->argument('name'))) {
-            $folder = resource_path('/views');
-            for ($i = 0; $i < count($path) - 1; $i++) {
-                if (!is_dir($folder . '/' . $path[$i])) {
-                    mkdir($folder . '/' . $path[$i]);
-                }
-                $folder .= '/' . $path[$i];
-            }
-            $fileIndex = count($path) - 1;
-
-            if (!empty($this->option('layout')))
-                $content = $this->replaceLayout($this->option('layout'), $this->getStub());
-
-            $filename = $folder . '/' . $path[$fileIndex] . '.blade.php';
-            $replaceIfNecessary = true;
-            if (file_exists($filename)) {
-                do {
-                    $input = $this->ask("There is a view with this name do you want to replace it ? [y/n] ");
-                } while (strtolower($input) != 'y' && strtolower($input) != 'n');
-
-                if('n' == strtolower($input))
-                    $replaceIfNecessary = false;
-            }
-
-            if ($replaceIfNecessary) {
-                file_put_contents($filename, $content);
-                $this->info('View created successfully.');
-            }
-        } else
-            $this->info('Invalid view name. Only alphanumeric characters and dashes are supported.');
+        return str_replace('Layout', $layout, $stub);
     }
 }

@@ -1,19 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Davinet\ArtisanCommand\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
+use RuntimeException;
 
-class Service extends Command
+/**
+ * Command to generate service classes.
+ *
+ * @author Merdi Elongo <merdielongo9@gmail.com>
+ */
+class Service extends BaseCommand
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'make:service {name}';
+    protected $signature = 'make:service {name}
+                            {--force : Overwrite existing files without confirmation}
+                            {--dry-run : Preview the file that would be created without actually creating it}';
 
     /**
      * The console command description.
@@ -23,82 +30,66 @@ class Service extends Command
     protected $description = 'Create a new service class';
 
     /**
-     * Create a new command instance.
+     * Execute the console command.
      *
-     * @return void
+     * @return int
      */
-    public function __construct()
+    public function handle(): int
     {
-        parent::__construct();
-    }
+        $name = $this->argument('name');
 
-    /**
-     * Retrieve the stub content from the repository's empty stub file.
-     *
-     * @return bool|string
-     */
-    protected function getEmptyStub()
-    {
-        return file_get_contents(__DIR__.'/stubs/empty.service.stub');
+        if (empty($name)) {
+            $this->error('The name of the service is required.');
+            return self::FAILURE;
+        }
+
+        try {
+            $stub = $this->getStubContent('empty.service');
+            $content = $this->replaceClassName($name, $stub);
+
+            $filename = app_path('Services/' . ucfirst($name) . '.php');
+            $question = "There is a service with this name ({$name}). Do you want to replace it? [y/n]";
+
+            if (!$this->shouldReplaceFile($filename, $question)) {
+                return self::SUCCESS;
+            }
+
+            $this->ensureDirectoryExists();
+            $this->writeFile($filename, $content);
+
+            $this->displaySuccess('Service created successfully!', $filename);
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error("Error: {$e->getMessage()}");
+            return self::FAILURE;
+        }
     }
 
     /**
      * Replace every DummyClass with the right class name.
      *
-     * @param $name
-     * @param $stub
-     * @return mixed
+     * @param string $name
+     * @param string $stub
+     * @return string
      */
-    protected function replaceClassName($name, $stub)
+    protected function replaceClassName(string $name, string $stub): string
     {
-        $class = ucfirst($name);
-        return str_replace('DummyClass', $class, $stub);
+        return str_replace('DummyClass', ucfirst($name), $stub);
     }
 
     /**
-     * Rewrite actually the content in the file.
-     *
-     * @param $filename
-     * @param $content
-     */
-    protected function putInFile($filename, $content)
-    {
-        if (!is_dir(app_path('/Services')))
-            mkdir(app_path('/Services'));
-
-        file_put_contents($filename, $content);
-    }
-
-    /**
-     * Execute the console command.
+     * Ensure the Services directory exists.
      *
      * @return void
      */
-    public function handle()
+    protected function ensureDirectoryExists(): void
     {
-        $name = $this->argument('name');
-        
-        if (empty($name)) {
-            $this->error('Please the name of the service is expected.');
-        } else {
-            $content = $this->replaceClassName($name, $this->getEmptyStub());
+        $directory = app_path('Services');
 
-            if (!is_null($content)) {
-                $filename = app_path('Services/'.ucfirst($name).'.php');
-
-                if (file_exists($filename)) {
-                    do {
-                        $input = $this->ask("There is a service with this name ($name) do you want to replace it ? [y/n] ");
-                    } while (strtolower($input) != 'y' && strtolower($input) != 'n');
-
-                    if ('y' == strtolower($input)) {
-                        $this->putInFile($filename, $content);
-                        $this->info('Service created successfully.');
-                    }
-                } else {
-                    $this->putInFile($filename, $content);
-                    $this->info('Service created successfully.');
-                }
+        if (!file_exists($directory)) {
+            if (!mkdir($directory, 0755, true) && !is_dir($directory)) {
+                throw new RuntimeException("Unable to create directory: {$directory}");
             }
         }
     }

@@ -1,22 +1,26 @@
 <?php
-/**
- * Author: Danny Villa Kalonji
- * Date: 07/11/2019
- * Time: 03:32
- */
+
+declare(strict_types=1);
 
 namespace Davinet\ArtisanCommand\Commands;
 
-use Illuminate\Console\Command;
-
-class Lang extends Command
+/**
+ * Command to generate language files.
+ *
+ * @author Merdi Elongo <merdielongo9@gmail.com>
+ */
+class Lang extends BaseCommand
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'make:lang {name?} {--locale= : The targeted locale. By default is en} {--json}';
+    protected $signature = 'make:lang {name?} 
+                            {--locale= : The targeted locale (default: en)}
+                            {--json : Create a JSON language file}
+                            {--force : Overwrite existing files without confirmation}
+                            {--dry-run : Preview the file that would be created without actually creating it}';
 
     /**
      * The console command description.
@@ -26,109 +30,126 @@ class Lang extends Command
     protected $description = 'Create a new language file';
 
     /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    /**
      * Execute the console command.
      *
-     * @return mixed
+     * @return int
      */
-    public function handle()
+    public function handle(): int
     {
         $name = $this->hasArgument('name') ? $this->argument('name') : '';
-        $locale = $this->hasOption('locale') ? $this->option('locale') : 'en';
+        $locale = $this->option('locale') ?? 'en';
 
-        if ($this->option('json'))
-            $this->createJson($locale);
-        else {
-            if ($this->nameIsCorrect($name)) {
-                $this->createLang($name, $locale);
-            } else {
-                if ($name == '')
-                    $this->error('No filename is given.');
-                else
-                    $this->error('The given filename is not correct.');
-            }
+        if ($this->option('json')) {
+            return $this->createJson($locale);
         }
-    }
 
-    /**
-     * Retrieve the stub content from the lang's stub file.
-     *
-     * @return mixed
-     */
-    protected function getStub()
-    {
-        return file_get_contents(__DIR__.'/stubs/lang.stub');
+        if (empty($name)) {
+            $this->error('No filename is given. Use --json flag for JSON language files.');
+            return self::FAILURE;
+        }
+
+        if (!$this->nameIsCorrect($name)) {
+            $this->error('The given filename is not correct. Only alphanumeric characters are allowed.');
+            return self::FAILURE;
+        }
+
+        return $this->createLang($name, $locale);
     }
 
     /**
      * Create a locale file within a lang sub-folder.
      *
-     * @param $name
-     * @param $locale
-     * @return void
+     * @param string $name
+     * @param string $locale
+     * @return int
      */
-    protected function createLang($name, $locale)
+    protected function createLang(string $name, string $locale): int
     {
-        if ($this->replaceExistingFile(resource_path('lang/'.$locale.'/'.$name.'.php'), "There is already a locale file with this name do you want to replace it ? [y/n]")) {
-            if (!is_dir(resource_path('lang/'.$locale)))
-                mkdir(resource_path('lang/'.$locale));
+        try {
+            $path = $this->getLangPath($locale, $name . '.php');
+            $question = "There is already a locale file with this name. Do you want to replace it? [y/n]";
 
-            file_put_contents(resource_path('lang/'.$locale.'/'.$name.'.php'), $this->getStub());
-            $this->info('Lang file created successfully.');
+            if (!$this->shouldReplaceFile($path, $question)) {
+                return self::SUCCESS;
+            }
+
+            $this->ensureLocaleDirectoryExists($locale);
+
+            $stub = $this->getStubContent('lang');
+            $this->writeFile($path, $stub);
+
+            $this->displaySuccess('Language file created successfully!', $path);
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error("Error: {$e->getMessage()}");
+            return self::FAILURE;
         }
     }
 
     /**
-     * Create a json locale file.
+     * Create a JSON locale file.
      *
-     * @param $locale
-     * @return void
+     * @param string $locale
+     * @return int
      */
-    protected function createJson($locale)
+    protected function createJson(string $locale): int
     {
-        if ($this->replaceExistingFile(resource_path('lang/'.$locale.'.json'), "There is already a locale file with this name do you want to replace it ? [y/n]")) {
-            file_put_contents(resource_path('lang/'.$locale.'.json'), "{\n \t \n}");
-            $this->info('Lang file created successfully.');
+        try {
+            $path = $this->getLangPath($locale . '.json');
+            $question = "There is already a locale file with this name. Do you want to replace it? [y/n]";
+
+            if (!$this->shouldReplaceFile($path, $question)) {
+                return self::SUCCESS;
+            }
+
+            $content = "{\n    \n}";
+            $this->writeFile($path, $content);
+
+            $this->displaySuccess('Language file created successfully!', $path);
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error("Error: {$e->getMessage()}");
+            return self::FAILURE;
         }
     }
 
     /**
-     * Check if the filename exists and if it could be replaced.
+     * Get the path to a language file.
      *
-     * @param $filename
-     * @param $question
-     * @return bool
+     * @param string ...$parts
+     * @return string
      */
-    protected function replaceExistingFile($filename, $question)
+    protected function getLangPath(string ...$parts): string
     {
-        $replaceExistingFile = true;
-        if (file_exists($filename)) {
-            do {
-                $input = $this->ask($question);
-            } while (strtolower($input) != 'y' && strtolower($input) != 'n');
+        return resource_path('lang' . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $parts));
+    }
 
-            if (strtolower($input) == 'n')
-                $replaceExistingFile = false;
+    /**
+     * Ensure the locale directory exists.
+     *
+     * @param string $locale
+     * @return void
+     */
+    protected function ensureLocaleDirectoryExists(string $locale): void
+    {
+        $directory = resource_path('lang' . DIRECTORY_SEPARATOR . $locale);
+
+        if (!file_exists($directory)) {
+            if (!mkdir($directory, 0755, true) && !is_dir($directory)) {
+                throw new \RuntimeException("Unable to create directory: {$directory}");
+            }
         }
-        return $replaceExistingFile;
     }
 
     /**
      * Check if the name is correct.
      *
-     * @param $name
+     * @param string $name
      * @return bool
      */
-    protected function nameIsCorrect($name)
+    protected function nameIsCorrect(string $name): bool
     {
         return (bool) preg_match('#^[a-zA-Z][a-zA-Z0-9]+$#', $name);
     }

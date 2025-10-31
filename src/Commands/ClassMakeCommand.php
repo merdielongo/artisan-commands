@@ -1,17 +1,18 @@
 <?php
-/**
- * Author: Danny Villa Kalonji
- * Date: 13/03/2019
- * Time: 14:36
- */
+
+declare(strict_types=1);
 
 namespace Davinet\ArtisanCommand\Commands;
 
-
-use Illuminate\Console\Command;
 use Illuminate\Support\Str;
+use RuntimeException;
 
-class ClassMakeCommand extends Command
+/**
+ * Command to generate classes, traits, or interfaces.
+ *
+ * @author Merdi Elongo <merdielongo9@gmail.com>
+ */
+class ClassMakeCommand extends BaseCommand
 {
     /**
      * The name and signature of the console command.
@@ -19,189 +20,161 @@ class ClassMakeCommand extends Command
      * @var string
      */
     protected $signature = 'make:class {filename}
-                            {--kind=class : This option accept either "class"(default) or "trait" or "interface" value.}
-                            {--separator=\\ : Character used to separate file and its parent(s) folder(s).}';
+                            {--kind=class : The type of file to create (class, trait, or interface)}
+                            {--separator=\\ : Character used to separate file and its parent folder(s)}
+                            {--force : Overwrite existing files without confirmation}
+                            {--dry-run : Preview the file that would be created without actually creating it}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Create a new class or trait file';
-
-    /**
-     * Create a new command instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        parent::__construct();
-    }
+    protected $description = 'Create a new class, trait, or interface file';
 
     /**
      * Execute the console command.
      *
-     * @return void
+     * @return int
      */
-    public function handle()
+    public function handle(): int
     {
-        if ($this->isCorrectFilename($this->argument('filename'))) {
-            $kind = $this->getKind();
+        $filename = $this->argument('filename');
 
-            if ($kind !== null) {
-                $path = base_path($this->argument('filename') . '.php');
+        if (!$this->isValidFilename($filename)) {
+            $this->error('The filename is not correct. Only alphanumeric characters, dots, underscores, backslashes, and hyphens are allowed.');
+            return self::FAILURE;
+        }
 
-                if ($this->replaceExistingFile($path, 'There is already a file with this name do you want to replace it ? [y/n]')) {
-                    $filename = str_contains($this->argument('filename'), '/')
-                        ? explode('/', $this->argument('filename'))
-                        : explode('\\', $this->argument('filename'));
+        $kind = $this->getKind();
 
-                    $this->createFoldersIfNecessary($filename);
-                    $stub = $this->getStub($kind);
-                    $stub = $this->replaceKindName($kind, $filename[count($filename) - 1], $stub);
-                    $namespace = '';
+        if ($kind === null) {
+            return self::FAILURE;
+        }
 
-                    for ($i = 0; $i < count($filename) - 1; $i++)
-                        $namespace .= ucfirst($filename[$i]).'\\';
+        try {
+            $path = $this->buildFilePath($filename);
+            $question = "There is already a file with this name. Do you want to replace it? [y/n]";
 
-                    $stub = $this->replaceNamespace(Str::replaceLast('\\', '', $namespace), $stub);
-
-                    file_put_contents($path, $stub);
-
-                    $this->info(ucfirst($kind).' created successfully');
-                }
+            if (!$this->shouldReplaceFile($path, $question)) {
+                return self::SUCCESS;
             }
-        } else
-            $this->error('The filename is not correct.');
+
+            $pathParts = $this->splitPath($filename);
+            $basePath = base_path();
+            
+            $this->createFoldersIfNecessary($pathParts, $basePath);
+
+            $stub = $this->getStubContent($kind);
+            $className = $pathParts[count($pathParts) - 1];
+            $namespace = $this->buildNamespace($pathParts);
+
+            $stub = $this->replaceKindName($kind, $className, $stub);
+            $stub = $this->replaceNamespace($namespace, $stub);
+
+            $this->writeFile($path, $stub);
+
+            $this->displaySuccess(ucfirst($kind) . ' created successfully!', $path);
+
+            return self::SUCCESS;
+        } catch (\Exception $e) {
+            $this->error("Error: {$e->getMessage()}");
+            return self::FAILURE;
+        }
+    }
+
+    /**
+     * Build the full file path.
+     *
+     * @param string $filename
+     * @return string
+     */
+    protected function buildFilePath(string $filename): string
+    {
+        return base_path($filename . '.php');
+    }
+
+    /**
+     * Split the filename into path parts.
+     *
+     * @param string $filename
+     * @return array
+     */
+    protected function splitPath(string $filename): array
+    {
+        if (str_contains($filename, '/')) {
+            return explode('/', $filename);
+        }
+
+        return explode('\\', $filename);
+    }
+
+    /**
+     * Build namespace from path parts.
+     *
+     * @param array $pathParts
+     * @return string
+     */
+    protected function buildNamespace(array $pathParts): string
+    {
+        $namespace = '';
+
+        for ($i = 0; $i < count($pathParts) - 1; $i++) {
+            $namespace .= ucfirst($pathParts[$i]) . '\\';
+        }
+
+        return Str::replaceLast('\\', '', $namespace);
     }
 
     /**
      * Replace every Dummy[Kind] with the right [kind] name.
      *
-     * @param $name
-     * @param $stub
-     * @return mixed
+     * @param string $kind
+     * @param string $name
+     * @param string $stub
+     * @return string
      */
-    protected function replaceKindName($kind, $name, $stub)
+    protected function replaceKindName(string $kind, string $name, string $stub): string
     {
-        return str_replace('Dummy'.ucfirst($kind), ucfirst($name), $stub);
+        return str_replace('Dummy' . ucfirst($kind), ucfirst($name), $stub);
     }
 
     /**
      * Set the right namespace in the stub.
      *
-     * @param $namespace
-     * @param $stub
-     * @return mixed
+     * @param string $namespace
+     * @param string $stub
+     * @return string
      */
-    protected function replaceNamespace($namespace, $stub)
+    protected function replaceNamespace(string $namespace, string $stub): string
     {
-        if (!empty($namespace))
-            return str_replace('DummyNamespace', 'namespace '.$namespace.';', $stub);
+        if (!empty($namespace)) {
+            return str_replace('DummyNamespace', 'namespace ' . $namespace . ';', $stub);
+        }
+
         return str_replace('DummyNamespace', '', $stub);
-    }
-
-    /**
-     * Create a set of folders if necessary.
-     *
-     * @param $filename
-     * @return void
-     */
-    protected function createFoldersIfNecessary($filename)
-    {
-        $folder = base_path('');
-        for ($i = 0; $i < count($filename) - 1; $i++) {
-            if (!is_dir($folder . '/' . $filename[$i])) {
-                mkdir($folder . '/' . $filename[$i]);
-            }
-            $folder .= '/' . $filename[$i];
-        }
-    }
-
-    /**
-     * Check if the filename is correct.
-     *
-     * @param $name
-     * @return bool
-     */
-    protected function isCorrectFilename($name)
-    {
-        return preg_match('#^[a-zA-Z][\a-zA-Z0-9\._]+$#', $name);
-    }
-
-
-    /**
-     * Check if the filename exists and if it could be replaced.
-     *
-     * @param $filename
-     * @param $question
-     * @return bool
-     */
-    protected function replaceExistingFile($filename, $question)
-    {
-        $replaceExistingFile = true;
-
-        $otherPath = str_contains($filename, '\\')
-            ? str_replace('\\', '/', $filename)
-            : str_replace('/', '\\', $filename);
-
-        if (file_exists($filename) || file_exists($otherPath)) {
-            do {
-                $input = $this->ask($question);
-            } while (strtolower($input) != 'y' && strtolower($input) != 'n');
-
-            if (strtolower($input) == 'n')
-                $replaceExistingFile = false;
-        }
-        return $replaceExistingFile;
-    }
-
-    /**
-     * Retrieve a stub for a kind of class.
-     *
-     * @param $kind
-     * @return bool|string
-     */
-    protected function getStub($kind)
-    {
-        return file_get_contents(__DIR__.'/stubs/'.$kind.'.stub');
     }
 
     /**
      * Get the kind option's value.
      *
-     * @return array|null|string
+     * @return string|null
      */
-    protected function getKind()
+    protected function getKind(): ?string
     {
-        if ($this->option('kind') !== null) {
-            if (preg_match('#^class|trait|interface$#', $this->option('kind')))
-                return $this->option('kind');
-            else {
-                $this->error('This is kind value is unexpected. The kind may be either "class" or "trait" or "interface".');
-                return null;
-            }
+        $kind = $this->option('kind');
+
+        if ($kind === null) {
+            return 'class';
         }
 
-        return 'class';
-    }
+        $validKinds = ['class', 'trait', 'interface'];
 
-    /**
-     * Get the separator from the option.
-     *
-     * @return array|string|null
-     */
-    protected function getSeparator()
-    {
-        if ($this->option('separator') !== null) {
-            if (mb_strlen($this->option('separator')) > 1) {
-                $this->error('This is an invalid separator. Please choose a separator between "." and "\" characters.');
-                return null;
-            } else
-                return $this->option('separator');
+        if (!in_array($kind, $validKinds, true)) {
+            $this->error("Invalid kind value. The kind must be one of: " . implode(', ', $validKinds));
+            return null;
         }
 
-        return '\\';
+        return $kind;
     }
 }
