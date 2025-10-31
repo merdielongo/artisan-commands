@@ -4,10 +4,10 @@ This package provides a set of new artisan commands for Laravel
 
 ## Installation
 
-Use the package manager [composer](https://getcomposer.org/) to install dannyvilla/artisan-commands
+Use the package manager [composer](https://getcomposer.org/) to install kernel243/artisan
 
 ```bash
-composer require dannyvilla/artisan-commands
+composer require kernel243/artisan
 ```
 
 ## Usage

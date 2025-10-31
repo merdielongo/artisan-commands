@@ -1,12 +1,12 @@
 {
-    "name": "dannyvilla/artisan-commands",
+    "name": "kernel243/artisan",
     "description": "This package provides a set of artisan commands for Laravel",
     "type": "library",
     "license": "MIT",
     "minimum-stability": "dev",
     "authors": [{
-        "name": "Danny Villa Kalonji",
-        "email": "dannykalonji529@gmail.com"
+        "name": "Merdi Elongo",
+        "email": "merdielongo9@gmail.com"
     }],
     "require": {
         "php": ">=7.0.0",
