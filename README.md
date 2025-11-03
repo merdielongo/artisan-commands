@@ -135,10 +135,127 @@ php artisan make:file config.app --ext=json
 php artisan make:file scripts.helper --ext=js
 ```
 
+### 7. CRUD Command
+
+Generate complete CRUD resources with Model, Controller, Repository, Service, and Blade views.
+
+**Generate a CRUD without fields (you'll add them manually):**
+```bash
+php artisan make:crud Product
+```
+
+**Generate a CRUD with fields:**
+```bash
+php artisan make:crud Product --fields="title:string,description:text,price:decimal,is_active:boolean"
+```
+
+**Force overwrite existing CRUD files:**
+```bash
+php artisan make:crud Product --force
+```
+
+**What it generates:**
+- ✅ Model (`app/Models/Product.php`)
+- ✅ Repository (`app/Repositories/ProductRepository.php`)
+- ✅ Service (`app/Services/ProductService.php`)
+- ✅ Controller (`app/Http/Controllers/ProductController.php`)
+- ✅ Views (index, create, edit, show) with Tailwind CSS styling
+- ✅ Routes in `routes/web.php` - **automatically added**
+- ✅ Layout template with Tailwind CSS (`resources/views/layouts/app.blade.php`)
+- ✅ Tailwind CSS configuration (`tailwind.config.js`)
+
+**Supported field types:**
+- `string` or `text` or `varchar` - Text inputs
+- `textarea` or `text` - Textarea fields
+- `email` - Email inputs
+- `boolean` or `tinyint` - Checkbox fields
+- Any other type defaults to text input
+
+### 8. Resource CRUD Command
+
+Generate complete CRUD resources with Resource classes (Laravel Filament-inspired pattern).
+
+**Generate a Resource CRUD:**
+```bash
+php artisan make:resource-crud Product
+```
+
+**Generate a Resource CRUD with fields:**
+```bash
+php artisan make:resource-crud Product --fields="title:string,description:text,price:decimal,is_active:boolean"
+```
+
+**Force overwrite existing files:**
+```bash
+php artisan make:resource-crud Product --force
+```
+
+**What it generates:**
+- ✅ Model (`app/Models/Product.php`)
+- ✅ Repository (`app/Repositories/ProductRepository.php`)
+- ✅ Service (`app/Services/ProductService.php`)
+- ✅ Controller (`app/Http/Controllers/ProductController.php`) - **injects Resource class**
+- ✅ Resource class (`app/Resources/ProductResource.php`) - **Filament-inspired pattern**
+- ✅ Base classes (`app/Resources/Resource.php`, `app/Builders/Form.php`, `app/Builders/Table.php`)
+- ✅ Default views with Tailwind CSS (`resources/views/resources/crud/*.blade.php`) - **uses Resource class**
+- ✅ Routes in `routes/web.php` - **automatically added**
+- ✅ Layout template with Tailwind CSS (`resources/views/layouts/app.blade.php`)
+- ✅ Tailwind CSS configuration (`tailwind.config.js`)
+
+**Resource Class Pattern:**
+The Resource CRUD command generates a Resource class inspired by Laravel Filament that defines:
+- `form($form)` - Form field definitions
+- `table($table)` - Table column definitions (Yajra DataTables compatible)
+- `actions()` - Custom actions
+- `rules()` - Validation rules
+- `getFillable()` - Model fillable fields
+
+**Supported field types:**
+- `string` or `text` or `varchar` - Text inputs
+- `textarea` or `text` - Textarea fields
+- `email` - Email inputs
+- `boolean` or `tinyint` - Checkbox fields
+- `decimal`, `integer`, `bigint` - Number fields
+- `datetime`, `date`, `timestamp` - Date/time fields
+- Any other type defaults to text input
+
+**Example Resource class generated:**
+```php
+class ProductResource extends Resource
+{
+    protected $model = App\Models\Product::class;
+    
+    public function form($form)
+    {
+        return $form->schema([
+            Form::text('title', 'Title'),
+            Form::textarea('description', 'Description'),
+            Form::number('price', 'Price'),
+            Form::checkbox('is_active', 'Is Active'),
+        ]);
+    }
+    
+    public function table($table)
+    {
+        return $table->columns([
+            Table::text('id', 'ID'),
+            Table::text('title', 'Title'),
+            Table::number('price', 'Price'),
+            Table::boolean('is_active', 'Active'),
+            Table::actions(),
+        ]);
+    }
+}
+```
+
 ## Features
 
 ✅ **Modern PHP 8.1+** - Uses strict types and modern PHP features  
 ✅ **Laravel 9, 10 & 11 Support** - Compatible with latest Laravel versions  
+✅ **Complete CRUD Generation** - Generate full CRUD with views, controller, model, repository & service  
+✅ **Filament-Inspired Pattern** - Resource classes with form() and table() methods  
+✅ **Yajra DataTables** - Table builder compatible with Yajra DataTables  
+✅ **Tailwind CSS** - Beautiful, modern UI with Tailwind CSS included  
 ✅ **Force Overwrite** - Skip confirmations with `--force` flag  
 ✅ **Dry Run Mode** - Preview changes without modifying files  
 ✅ **Better Error Handling** - Clear error messages and exception handling  

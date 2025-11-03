@@ -3,9 +3,11 @@
 namespace Davinet\ArtisanCommand;
 
 use Davinet\ArtisanCommand\Commands\ClassMakeCommand;
+use Davinet\ArtisanCommand\Commands\CrudMakeCommand;
 use Davinet\ArtisanCommand\Commands\File;
 use Davinet\ArtisanCommand\Commands\Lang;
 use Davinet\ArtisanCommand\Commands\Repository;
+use Davinet\ArtisanCommand\Commands\ResourceMakeCommand;
 use Davinet\ArtisanCommand\Commands\Service;
 use Davinet\ArtisanCommand\Commands\View;
 use Illuminate\Support\ServiceProvider;
@@ -27,7 +29,8 @@ class ArtisanCommandServiceProvider extends ServiceProvider
                 Lang::class,
                 Service::class,
                 ClassMakeCommand::class,
-
+                CrudMakeCommand::class,
+                ResourceMakeCommand::class,
             ]);
         }
     }

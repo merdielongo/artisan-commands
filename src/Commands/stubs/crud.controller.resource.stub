@@ -1,0 +1,158 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Resources\DummyResourceClass;
+use App\Services\DummyService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\View\View;
+
+class DummyController extends Controller
+{
+    /**
+     * The service instance.
+     *
+     * @var DummyService
+     */
+    protected $service;
+
+    /**
+     * The resource instance.
+     *
+     * @var DummyResourceClass
+     */
+    protected $resource;
+
+    /**
+     * Create a new controller instance.
+     *
+     * @param DummyService $service
+     * @param DummyResourceClass $resource
+     */
+    public function __construct(DummyService $service, DummyResourceClass $resource)
+    {
+        $this->service = $service;
+        $this->resource = $resource;
+    }
+
+    /**
+     * Display a listing of the resource.
+     *
+     * @return View
+     */
+    public function index(): View
+    {
+        $DummyPluralVariable = $this->service->getPaginated();
+        
+        // Get table columns from resource
+        $tableBuilder = app(\App\Builders\Table::class);
+        $tableColumns = $this->resource->table($tableBuilder)->getColumns();
+        
+        return view('DummyViewPath.index', compact('DummyPluralVariable', 'tableColumns'))
+            ->with(['resourceName' => $this->resource->getName(), 'routePrefix' => $this->resource->getRoutePrefix()]);
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @return View
+     */
+    public function create(): View
+    {
+        // Get form fields from resource
+        $formBuilder = app(\App\Builders\Form::class);
+        $formFields = $this->resource->form($formBuilder)->getFields();
+        
+        return view('DummyViewPath.create')
+            ->with(['resourceName' => $this->resource->getName(), 'routePrefix' => $this->resource->getRoutePrefix(), 'formFields' => $formFields]);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param Request $request
+     * @return RedirectResponse
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate($this->resource->rules());
+
+        $this->service->create($validated);
+
+        return redirect()->route('DummyViewPath.index')
+            ->with('success', 'Item created successfully.');
+    }
+
+    /**
+     * Display the specified resource.
+     *
+     * @param int $id
+     * @return View
+     */
+    public function show(int $id): View
+    {
+        $DummyVariable = $this->service->getById($id);
+        
+        // Get detail fields from resource
+        $formBuilder = app(\App\Builders\Form::class);
+        $formFields = $this->resource->form($formBuilder)->getFields();
+        $detailFields = array_map(function($field) {
+            return ['name' => $field['name'], 'label' => $field['label'], 'type' => $field['type'] ?? 'text'];
+        }, $formFields);
+        
+        return view('DummyViewPath.show', compact('DummyVariable', 'detailFields'))
+            ->with(['resourceName' => $this->resource->getName(), 'routePrefix' => $this->resource->getRoutePrefix()]);
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @param int $id
+     * @return View
+     */
+    public function edit(int $id): View
+    {
+        $DummyVariable = $this->service->getById($id);
+        
+        // Get form fields from resource
+        $formBuilder = app(\App\Builders\Form::class);
+        $formFields = $this->resource->form($formBuilder)->getFields();
+        
+        return view('DummyViewPath.edit', compact('DummyVariable', 'formFields'))
+            ->with(['resourceName' => $this->resource->getName(), 'routePrefix' => $this->resource->getRoutePrefix()]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return RedirectResponse
+     */
+    public function update(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate($this->resource->rules());
+
+        $this->service->update($id, $validated);
+
+        return redirect()->route('DummyViewPath.index')
+            ->with('success', 'Item updated successfully.');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param int $id
+     * @return RedirectResponse
+     */
+    public function destroy(int $id): RedirectResponse
+    {
+        $this->service->delete($id);
+
+        return redirect()->route('DummyViewPath.index')
+            ->with('success', 'Item deleted successfully.');
+    }
+}
+

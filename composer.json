@@ -1,6 +1,6 @@
 {
     "name": "kernel243/artisan",
-    "description": "This package provides a set of artisan commands for Laravel",
+    "description": "This package provides a set of artisan commands for Laravel including CRUD generator with Tailwind CSS",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -8,9 +8,11 @@
         "artisan",
         "commands",
         "generator",
+        "crud",
         "repository",
         "service",
-        "views"
+        "views",
+        "tailwind"
     ],
     "authors": [{
         "name": "Merdi Elongo",
@@ -18,7 +20,8 @@
     }],
     "require": {
         "php": "^8.1|^8.2|^8.3",
-        "laravel/framework": "^9.0|^10.0|^11.0"
+        "laravel/framework": "^9.0|^10.0|^11.0",
+        "livewire/livewire": "^3.6"
     },
     "autoload": {
         "psr-4": {

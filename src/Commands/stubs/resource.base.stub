@@ -1,0 +1,123 @@
+<?php
+
+namespace App\Resources;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Request;
+
+/**
+ * Base Resource class
+ * 
+ * This is the base class for all resources
+ */
+abstract class Resource
+{
+    /**
+     * The model class name.
+     *
+     * @var string
+     */
+    protected $model;
+
+    /**
+     * The resource name.
+     *
+     * @var string
+     */
+    protected $name;
+
+    /**
+     * The resource route prefix.
+     *
+     * @var string
+     */
+    protected $routePrefix;
+
+    /**
+     * Optional custom view path.
+     *
+     * @var string|null
+     */
+    protected $view = null;
+
+    /**
+     * Get the model instance.
+     *
+     * @return Model
+     */
+    public function getModel()
+    {
+        return app($this->model);
+    }
+
+    /**
+     * Get the resource name.
+     *
+     * @return string
+     */
+    public function getName()
+    {
+        return $this->name;
+    }
+
+    /**
+     * Get the route prefix.
+     *
+     * @return string
+     */
+    public function getRoutePrefix()
+    {
+        return $this->routePrefix;
+    }
+
+    /**
+     * Get the view path.
+     *
+     * @return string|null
+     */
+    public function getView()
+    {
+        return $this->view;
+    }
+
+    /**
+     * Define the form fields.
+     *
+     * @param mixed $form
+     * @return mixed
+     */
+    abstract public function form($form);
+
+    /**
+     * Define the table columns.
+     *
+     * @param mixed $table
+     * @return mixed
+     */
+    abstract public function table($table);
+
+    /**
+     * Define the resource actions.
+     *
+     * @return array
+     */
+    abstract public function actions();
+
+    /**
+     * Define validation rules.
+     *
+     * @return array
+     */
+    abstract public function rules();
+
+    /**
+     * Get the fillable fields.
+     *
+     * @return array
+     */
+    public function getFillable()
+    {
+        return [];
+    }
+}
+

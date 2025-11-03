@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Builders;
+
+/**
+ * Form Builder Class
+ * 
+ * Used to build form schemas for resources
+ */
+class Form
+{
+    /**
+     * The form fields.
+     *
+     * @var array
+     */
+    protected $fields = [];
+
+    /**
+     * Create a new form builder instance.
+     *
+     * @param array $fields
+     */
+    public function __construct(array $fields = [])
+    {
+        $this->fields = $fields;
+    }
+
+    /**
+     * Set the form fields.
+     *
+     * @param array $fields
+     * @return $this
+     */
+    public function schema(array $fields)
+    {
+        $this->fields = $fields;
+        return $this;
+    }
+
+    /**
+     * Get the form fields.
+     *
+     * @return array
+     */
+    public function getFields()
+    {
+        return $this->fields;
+    }
+
+    /**
+     * Add a text input field.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function text($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'text',
+            'name' => $name,
+            'label' => $label,
+        ], $options);
+    }
+
+    /**
+     * Add a textarea field.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function textarea($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'textarea',
+            'name' => $name,
+            'label' => $label,
+        ], $options);
+    }
+
+    /**
+     * Add an email field.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function email($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'email',
+            'name' => $name,
+            'label' => $label,
+        ], $options);
+    }
+
+    /**
+     * Add a select field.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function select($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'select',
+            'name' => $name,
+            'label' => $label,
+        ], $options);
+    }
+
+    /**
+     * Add a checkbox field.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function checkbox($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'checkbox',
+            'name' => $name,
+            'label' => $label,
+        ], $options);
+    }
+}
+

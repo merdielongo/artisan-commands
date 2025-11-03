@@ -1,0 +1,63 @@
+@if(!isset($item))
+    @php($item = null)
+@endif
+
+@foreach($formFields as $field)
+    <div class="mb-4">
+        <label for="{{ $field['name'] }}" class="block text-gray-700 font-bold mb-2">
+            {{ $field['label'] }}
+            @if(isset($field['required']) && $field['required'])
+                <span class="text-red-500">*</span>
+            @endif
+        </label>
+        
+        @if($field['type'] === 'textarea')
+            <textarea 
+                id="{{ $field['name'] }}" 
+                name="{{ $field['name'] }}" 
+                rows="4"
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline {{ $errors->has($field['name']) ? 'border-red-500' : '' }}"
+                {{ isset($field['required']) && $field['required'] ? 'required' : '' }}
+                {{ isset($field['readonly']) && $field['readonly'] ? 'readonly' : '' }}
+            >{{ old($field['name'], $item ? $item->{$field['name']} : '') }}</textarea>
+        @elseif($field['type'] === 'checkbox' || $field['type'] === 'boolean')
+            <label class="flex items-center">
+                <input 
+                    type="checkbox" 
+                    id="{{ $field['name'] }}" 
+                    name="{{ $field['name'] }}" 
+                    value="1" 
+                    class="mr-2"
+                    {{ old($field['name'], $item && $item->{$field['name']} ? true : false) ? 'checked' : '' }}
+                >
+                <span class="text-gray-700">{{ $field['label'] }}</span>
+            </label>
+        @elseif($field['type'] === 'select')
+            <select 
+                id="{{ $field['name'] }}" 
+                name="{{ $field['name'] }}" 
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline {{ $errors->has($field['name']) ? 'border-red-500' : '' }}"
+                {{ isset($field['required']) && $field['required'] ? 'required' : '' }}
+            >
+                <option value="">Select {{ $field['label'] }}</option>
+                {{-- Add options here if needed --}}
+            </select>
+        @else
+            <input 
+                type="{{ $field['type'] }}" 
+                id="{{ $field['name'] }}" 
+                name="{{ $field['name'] }}" 
+                value="{{ old($field['name'], $item ? $item->{$field['name']} : '') }}" 
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline {{ $errors->has($field['name']) ? 'border-red-500' : '' }}"
+                {{ isset($field['required']) && $field['required'] ? 'required' : '' }}
+                {{ isset($field['readonly']) && $field['readonly'] ? 'readonly' : '' }}
+                {{ isset($field['placeholder']) ? 'placeholder="' . $field['placeholder'] . '"' : '' }}
+            >
+        @endif
+
+        @error($field['name'])
+            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+        @enderror
+    </div>
+@endforeach
+

@@ -1,0 +1,144 @@
+<?php
+
+namespace App\Builders;
+
+/**
+ * Table Builder Class
+ * 
+ * Used to build table columns for resources (Yajra DataTables compatible)
+ */
+class Table
+{
+    /**
+     * The table columns.
+     *
+     * @var array
+     */
+    protected $columns = [];
+
+    /**
+     * Create a new table builder instance.
+     *
+     * @param array $columns
+     */
+    public function __construct(array $columns = [])
+    {
+        $this->columns = $columns;
+    }
+
+    /**
+     * Set the table columns.
+     *
+     * @param array $columns
+     * @return $this
+     */
+    public function columns(array $columns)
+    {
+        $this->columns = $columns;
+        return $this;
+    }
+
+    /**
+     * Get the table columns.
+     *
+     * @return array
+     */
+    public function getColumns()
+    {
+        return $this->columns;
+    }
+
+    /**
+     * Add a text column.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function text($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'text',
+            'name' => $name,
+            'label' => $label,
+            'orderable' => true,
+            'searchable' => true,
+        ], $options);
+    }
+
+    /**
+     * Add a number column.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function number($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'number',
+            'name' => $name,
+            'label' => $label,
+            'orderable' => true,
+            'searchable' => false,
+        ], $options);
+    }
+
+    /**
+     * Add a boolean column.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function boolean($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'boolean',
+            'name' => $name,
+            'label' => $label,
+            'orderable' => true,
+            'searchable' => false,
+        ], $options);
+    }
+
+    /**
+     * Add a datetime column.
+     *
+     * @param string $name
+     * @param string $label
+     * @param array $options
+     * @return array
+     */
+    public static function datetime($name, $label, $options = [])
+    {
+        return array_merge([
+            'type' => 'datetime',
+            'name' => $name,
+            'label' => $label,
+            'orderable' => true,
+            'searchable' => false,
+        ], $options);
+    }
+
+    /**
+     * Add an actions column.
+     *
+     * @param array $options
+     * @return array
+     */
+    public static function actions($options = [])
+    {
+        return array_merge([
+            'type' => 'actions',
+            'name' => 'actions',
+            'label' => 'Actions',
+            'orderable' => false,
+            'searchable' => false,
+        ], $options);
+    }
+}
+

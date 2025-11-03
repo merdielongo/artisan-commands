@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Resources;
+
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * DummyResourceName Resource Class
+ * 
+ * This class defines the structure and behavior of DummyResourceName CRUD operations
+ */
+class DummyResourceClass extends Resource
+{
+    /**
+     * The model class name.
+     *
+     * @var string
+     */
+    protected $model = App\Models\DummyModel::class;
+
+    /**
+     * The resource name.
+     *
+     * @var string
+     */
+    protected $name = 'DummyResourcePlural';
+
+    /**
+     * The resource route prefix.
+     *
+     * @var string
+     */
+    protected $routePrefix = 'DummyResourceKebab';
+
+    /**
+     * Optional custom view path.
+     * Set this if you want to use custom Blade views.
+     *
+     * @var string|null
+     */
+    protected $view = null;
+
+    /**
+     * Define the form fields.
+     *
+     * @param \App\Builders\Form $form
+     * @return \App\Builders\Form
+     */
+    public function form($form)
+    {
+        return $form->schema([
+            // Define your form fields here
+DummyFormFields
+        ]);
+    }
+
+    /**
+     * Define the table columns.
+     *
+     * @param \App\Builders\Table $table
+     * @return \App\Builders\Table
+     */
+    public function table($table)
+    {
+        return $table->columns([
+            // Define your table columns here
+DummyTableColumns
+        ]);
+    }
+
+    /**
+     * Define the resource actions.
+     *
+     * @return array
+     */
+    public function actions()
+    {
+        return [
+            // Define your custom actions here
+            // Example: 'export', 'bulk_delete', etc.
+        ];
+    }
+
+    /**
+     * Define validation rules.
+     *
+     * @return array
+     */
+    public function rules()
+    {
+        return [
+            // Define validation rules here
+DummyValidationRules
+        ];
+    }
+
+    /**
+     * Get the fillable fields from the model.
+     *
+     * @return array
+     */
+    public function getFillable()
+    {
+        return app($this->model)->getFillable();
+    }
+}
+

@@ -1,0 +1,126 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\DummyService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\View\View;
+
+class DummyController extends Controller
+{
+    /**
+     * The service instance.
+     *
+     * @var DummyService
+     */
+    protected $service;
+
+    /**
+     * Create a new controller instance.
+     *
+     * @param DummyService $service
+     */
+    public function __construct(DummyService $service)
+    {
+        $this->service = $service;
+    }
+
+    /**
+     * Display a listing of the resource.
+     *
+     * @return View
+     */
+    public function index(): View
+    {
+        $DummyPluralVariable = $this->service->getPaginated();
+        return view('DummyViewPath.index', compact('DummyPluralVariable'));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     *
+     * @return View
+     */
+    public function create(): View
+    {
+        return view('DummyViewPath.create');
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param Request $request
+     * @return RedirectResponse
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            // Add your validation rules here
+        ]);
+
+        $this->service->create($validated);
+
+        return redirect()->route('DummyViewPath.index')
+            ->with('success', 'Item created successfully.');
+    }
+
+    /**
+     * Display the specified resource.
+     *
+     * @param int $id
+     * @return View
+     */
+    public function show(int $id): View
+    {
+        $DummyVariable = $this->service->getById($id);
+        return view('DummyViewPath.show', compact('DummyVariable'));
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     *
+     * @param int $id
+     * @return View
+     */
+    public function edit(int $id): View
+    {
+        $DummyVariable = $this->service->getById($id);
+        return view('DummyViewPath.edit', compact('DummyVariable'));
+    }
+
+    /**
+     * Update the specified resource in storage.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return RedirectResponse
+     */
+    public function update(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            // Add your validation rules here
+        ]);
+
+        $this->service->update($id, $validated);
+
+        return redirect()->route('DummyViewPath.index')
+            ->with('success', 'Item updated successfully.');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param int $id
+     * @return RedirectResponse
+     */
+    public function destroy(int $id): RedirectResponse
+    {
+        $this->service->delete($id);
+
+        return redirect()->route('DummyViewPath.index')
+            ->with('success', 'Item deleted successfully.');
+    }
+}
+
